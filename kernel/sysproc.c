@@ -116,24 +116,93 @@ sys_uptime(void)
 }
 
 // ===== Q1: getuptime (owner: Yash Vardhan) =====
+// Returns the number of timer ticks since boot.
 uint64
 sys_getuptime(void)
 {
+  uint xticks;
+
+  acquire(&tickslock);   // same locking the kernel already does in sys_uptime
+  xticks = ticks;        // read the shared counter while protected
+  release(&tickslock);   // always release before returning
+  return xticks;
   return 0;
 }
 
 // ===== Q2: activecount (owner: Yash Vardhan) =====
+// Counts the entries in the process table whose state is not UNUSED.
 uint64
 sys_activecount(void)
 {
-  return 0;
+  struct proc *p;
+  int n = 0;
+
+  for(p = proc; p < &proc[NPROC]; p++){   // visit every slot (NPROC = 64)
+    acquire(&p->lock);                    // p->state is protected by p->lock
+    if(p->state != UNUSED)                // USED, SLEEPING, RUNNABLE, RUNNING, ZOMBIE all count
+      n++;
+    release(&p->lock);                    // release before moving to the next slot
+  }
+  return n;
 }
 
 // ===== Q3: lineage (owner: Yash Vardhan) =====
 uint64
 sys_lineage(void)
 {
-  return 0;
+  static int
+lineage_snap(struct proc *p, int *pid, char *name, struct proc **parent)
+{
+  acquire(&wait_lock);        // guards p->parent
+  acquire(&p->lock);          // guards p->state, p->pid, p->name
+  if(p->state == UNUSED){     
+    release(&p->lock);
+    release(&wait_lock);
+    return 0;
+  }
+  *pid = p->pid;                    
+  safestrcpy(name, p->name, 16);    // copy the name safely (max 16 bytes, always NUL-terminated)
+  *parent = p->parent;              // remember who the parent is (0 for init)
+  release(&p->lock);
+  release(&wait_lock);
+  return 1;
+}
+
+// Returns how many lines were printed, or -1 if `pid` is not an active process.
+uint64
+sys_lineage(void)
+{
+  int pid, cpid = 0, count = 0;
+  char name[16];                 // fixed max name length (matches struct proc)
+  struct proc *p, *cur = 0, *par = 0;
+
+  argint(0, &pid);               // read the syscall argument (returns void here)
+
+  // find the slot whose pid matches and which is in use.
+  for(p = proc; p < &proc[NPROC]; p++){
+    if(lineage_snap(p, &cpid, name, &par) && cpid == pid){
+      cur = p;                   // remember the slot we found
+      break;
+    }
+  }
+  if(cur == 0)
+    return -1;                   // no active process has this pid
+
+  // climbing the parent chain one process at a time.
+  // No locks are held inside this loop body except while snapshotting.
+  while(1){
+    printk("PID %d: %s\n", cpid, name);   // kernel printing uses printk, not printf
+    count++;
+
+    // Stop at init (pid 1), at a missing parent, or after NPROC steps
+    if(cpid == 1 || par == 0 || count >= NPROC)
+      break;
+
+    cur = par;                                    // move up to the parent
+    if(!lineage_snap(cur, &cpid, name, &par))    
+      break;
+  }
+  return count;
 }
 
 // ===== Q4: getprocsize (owner: Parag Prasun) =====
