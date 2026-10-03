@@ -201,23 +201,99 @@ sys_lineage(void)
   return count;
 }
 
+// ============================================================
+// START of code added by Parag Prasun (Q4, Q5, Bonus) and Bonus is also in user/pstree.c also so please do check and hereby I declare all things are there
+// ============================================================
+
 // ===== Q4: getprocsize (owner: Parag Prasun) =====
+// Returns p->sz (bytes) of the active process with this pid, else -1.
 uint64
 sys_getprocsize(void)
 {
-  return 0;
+  int pid;//this will store pid from the user space
+  struct proc *p;                         
+  argint(0, &pid);                         // Here, pointer iterate through the whole table to fetch the first argument (PID) passed to the syscall
+
+  for(p =proc; p< &proc[NPROC];p++){    //loop through the whole process table until 64 is reached or it ends
+    acquire(&p->lock);  //giving process a lock and now we can proceed
+            if((p->state!= UNUSED )&& p->pid== pid){
+             //throughout the whole process table we go and find the table which contain our real pid if not found than -1 or else we are doing to return the sz after releasing the lock as it may gets crashed
+              uint64 sz =p->sz;          
+              release(&p->lock);                 
+              return sz;}
+
+    
+    release(&p->lock);     }//lock release , nothing found
+  return -1;                               //-1 return to show not found
 }
 
 // ===== Q5: familyheadcount (owner: Parag Prasun) =====
+//complement of  UNUSED, zombie state is active state.
 uint64
-sys_familyheadcount(void)
-{
-  return 0;
+sys_familyheadcount(void){
+  //LOGIC: We have to iterate over the process table when we pick an active process and then we initialize an integer n which will give active child and assigned it 0 as if child are none than it returns 0.
+  struct proc *me =myproc();             
+  struct proc *p;                      
+  int n =0;                             
+
+  acquire(&wait_lock);                     //giving process a lock and now we can proceed
+  for(p = proc; p<&proc[NPROC];p++){   //loop through the whole process table until 64 is reached or it ends
+    acquire(&p->lock);                     // locking the process 
+    if(p->parent ==me &&p->state !=UNUSED &&p->state!= ZOMBIE)
+     // if we are the parent, it is active than increase, I USED not condition as negation of truth is false so i don't have to write running used and runnable and sleeping condition
+      n++;                                 //+1 counter
+    release(&p->lock);    //released the lock                 
+  }
+  release(&wait_lock);                     //Now whole lock is released
+  return n;                                // n is active child which was returned here
+
 }
 
-// ===== Bonus: getprocs (owner: Parag Prasun) =====
+// ===== Bonus: sys_getprocs (owner: Parag Prasun) =====
+// Returns active processes count copied to user space, else -1 on error.
 uint64
 sys_getprocs(void)
 {
-  return 0;
+  uint64 addr;
+  int max_procs;
+  struct proc *p;
+  struct proc *my_p = myproc();            // pointer to current proc and counter to track copied active processes
+  int count = 0;
+
+  // fetch 1st arg (user space array address)and 2nd arg(max array capacity)
+  argaddr(0, &addr);
+  argint(1, &max_procs);
+
+  // loop through whole process table
+  for(p = proc; p < &proc[NPROC]; p++){
+    // giving process a lock and now we can proceed
+    acquire(&p->lock);
+    // gather data only for active procs (I USED != UNUSED so zombie/running states are caught)
+    if(p->state != UNUSED){         // ensuring  count<max_procs so we don't write past user buffer limit
+      if(count < max_procs){    // populate local procinfo struct with pid,ppid, sz, and name
+        struct procinfo info;
+        info.pid = p->pid;
+        info.ppid = p->parent ? p->parent->pid : 0;
+        info.sz = p->sz;
+        safestrcpy(info.name, p->name, sizeof(info.name));
+
+                                                  // copyout moves kernel struct info to user space offset
+        if(copyout(my_p->pagetable,my_p->sz,addr + count * sizeof(struct procinfo), (char *)&info, sizeof(info)) < 0){
+                                             // release lock on copyout error to prevent kernel deadlock and return -1
+          release(&p->lock);
+          return -1;
+        }
+                    // increment copied count and release process lock before moving to next slot
+        count++;
+      }
+    }
+    release(&p->lock);
+  }
+  // return total count of active processes copied to user space
+  return count;
+  // i have simply given the lock to prevent overflow and continious use of lock in this such that it can't we accessed by other and it will surely work as if i suppose it have one core than it will work with some removing of condition but i still written that.
 }
+
+// ============================================================
+// END of code added by Parag Prasun(2025354) (Q4, Q5, Bonus)
+// ============================================================
