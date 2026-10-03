@@ -30,7 +30,7 @@ void print_indent(int depth) {
 // Print process info name with optional flags
 void print_process_line(struct procinfo *p, int pflag, int mflag) {
     printf("%s", p->name);
-    if (pflag) printf(" (%d)", p->pid);           // print pid if -p flag set
+    if (pflag) printf("(%d)", p->pid);           // print pid if -p flag set
     if (mflag) printf(" [%dB]", (int)p->sz);      // print memory size if -m flag set
     printf("\n");
 }

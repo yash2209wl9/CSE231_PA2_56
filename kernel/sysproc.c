@@ -278,7 +278,7 @@ sys_getprocs(void)
         safestrcpy(info.name, p->name, sizeof(info.name));
 
                                                   // copyout moves kernel struct info to user space offset
-        if(copyout(my_p->pagetable,my_p->sz,addr + count * sizeof(struct procinfo), (char *)&info, sizeof(info)) < 0){
+        if(copyout(my_p->pagetable,addr + count * sizeof(struct procinfo), (char *)&info, sizeof(info)) < 0){
                                              // release lock on copyout error to prevent kernel deadlock and return -1
           release(&p->lock);
           return -1;
