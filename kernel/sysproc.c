@@ -126,7 +126,6 @@ sys_getuptime(void)
   xticks = ticks;        // read the shared counter while protected
   release(&tickslock);   // always release before returning
   return xticks;
-  return 0;
 }
 
 // ===== Q2: activecount (owner: Yash Vardhan) =====
@@ -147,10 +146,7 @@ sys_activecount(void)
 }
 
 // ===== Q3: lineage (owner: Yash Vardhan) =====
-uint64
-sys_lineage(void)
-{
-  static int
+static int
 lineage_snap(struct proc *p, int *pid, char *name, struct proc **parent)
 {
   acquire(&wait_lock);        // guards p->parent
