@@ -6,6 +6,10 @@
 #include "spinlock.h"
 #include "proc.h"
 #include "vm.h"
+#include "procinfo.h"
+
+extern struct proc proc[NPROC];
+extern struct spinlock wait_lock;
 
 uint64
 sys_exit(void)
@@ -109,4 +113,46 @@ sys_uptime(void)
   xticks = ticks;
   release(&tickslock);
   return xticks;
+}
+
+// ===== Q1: getuptime (owner: Yash Vardhan) =====
+uint64
+sys_getuptime(void)
+{
+  return 0;
+}
+
+// ===== Q2: activecount (owner: Yash Vardhan) =====
+uint64
+sys_activecount(void)
+{
+  return 0;
+}
+
+// ===== Q3: lineage (owner: Yash Vardhan) =====
+uint64
+sys_lineage(void)
+{
+  return 0;
+}
+
+// ===== Q4: getprocsize (owner: Parag Prasun) =====
+uint64
+sys_getprocsize(void)
+{
+  return 0;
+}
+
+// ===== Q5: familyheadcount (owner: Parag Prasun) =====
+uint64
+sys_familyheadcount(void)
+{
+  return 0;
+}
+
+// ===== Bonus: getprocs (owner: Parag Prasun) =====
+uint64
+sys_getprocs(void)
+{
+  return 0;
 }

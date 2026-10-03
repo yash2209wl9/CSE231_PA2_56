@@ -21,3 +21,9 @@
 #define SYS_mkdir  20
 #define SYS_close  21
 #define SYS_sync   22
+#define SYS_getuptime       23
+#define SYS_activecount     24  
+#define SYS_lineage         25
+#define SYS_getprocsize     26
+#define SYS_familyheadcount 27
+#define SYS_getprocs        28
